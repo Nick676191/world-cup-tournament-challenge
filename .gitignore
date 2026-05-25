@@ -1,0 +1,9 @@
+# virtual environment
+venv/
+
+# csv files
+*.csv
+
+# pycache
+__pycache__/
+*.pyc
