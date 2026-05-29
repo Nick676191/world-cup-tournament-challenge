@@ -9,22 +9,39 @@ dates_dfs = {date: pd.read_csv(df_str_one + date + df_str_two) for date in dates
 
 
 team_schedules = pd.read_csv(r"/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/team_schedules.csv")
-# team_schedules = team_schedules.head()
 
 rank_str = "/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/" + str(dates[0]) + "_fifa_rankings.csv"
 ranked_df = pd.read_csv(rank_str)
 
 # changing date columns to datetimes
 team_schedules["Date"] = pd.to_datetime(team_schedules["Date"])
-# tester_df["Date"] = pd.to_datetime(tester_df["Date"])
-# print(tester_df)
+# team name preprocessing
+team_schedules['Opponent'] = team_schedules['Opponent'].replace(
+    {'United States': 'USA', 
+     'N. Macedonia': 'North Macedonia',
+     'UAE': 'United Arab Emirates',
+     'Trin & Tobago': 'Trinidad and Tobago',
+     'Gambia': 'The Gambia',
+     'Rep. of Ireland': 'Republic of Ireland',
+     'Bosnia-Herzegovina': 'Bosnia and Herzegovina',
+     'Equ. Guinea': 'Equatorial Guinea',
+     'Cape Verde': 'Cabo Verde',
+     'St. Lucia': 'St Lucia',
+     'São Tomé': 'São Tomé and Príncipe',
+     'Dominican Rep.': 'Dominican Republic'
+     })
+# remove 'CAR' and 'Guadeloupe' as I can't find any ranks for these teams and they make up 0.5% of the rows of the data
+team_schedules = team_schedules[team_schedules["Opponent"] != "CAR"].reset_index(drop=True)
+team_schedules = team_schedules[team_schedules["Opponent"] != "Guadeloupe"].reset_index(drop=True)
 
 def findRank(df_dict, team_df, date_num, keys, index):
     rank_df = df_dict[keys[date_num]]
-    matching_row = rank_df[rank_df["team_name"].str.contains(team_df["Opponent"][index], case=False, na=False)]
+    matching_row = rank_df[rank_df["team_name"] == team_df["Opponent"][index]]
     opp_rank = matching_row["rank"]
-    if len(opp_rank) != 1:
-        return 999
+    # if len(opp_rank) == 0:
+    #     return 999
+    # if len(opp_rank) > 1:
+    #     return 9999
 
     return opp_rank.values[0]
 
@@ -56,5 +73,8 @@ for i in range(len(team_schedules)):
 team_schedules["Opp Rank"] = ranks
 print(team_schedules)
 
-bad_ranks = team_schedules[team_schedules["Opp Rank"] == 999]
-print(f"These {len(set(bad_ranks["Opponent"]))} countries have been given an unknown rank value:\n{set(bad_ranks["Opponent"])}\nThey are in {len(bad_ranks)} rows of {len(team_schedules)}")
+# zero_ranks = team_schedules[team_schedules["Opp Rank"] == 999]["Opponent"]
+# mult_ranks = team_schedules[team_schedules["Opp Rank"] == 9999]["Opponent"]
+# print(f"These {len(set(zero_ranks))} teams had no teams show up in their search:\n{set(zero_ranks)}\nThey make up {round((len(zero_ranks)/len(team_schedules))*100, 2)}% of the rows")
+# print()
+# print(f"These {len(set(mult_ranks))} teams had multiple teams show up in their search:\n{set(mult_ranks)}\nThey make up {round((len(mult_ranks)/len(team_schedules))*100, 2)}% of the rows")
