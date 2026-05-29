@@ -48,22 +48,25 @@ def findRank(df_dict, team_df, date_num, keys, index):
 ranks = []
 dict_keys = list(dates_dfs.keys())
 for i in range(len(team_schedules)):
-    if team_schedules["Date"][i] <= datetime_list[0]:
+    if team_schedules["Date"][i] < datetime_list[0]:
         val = findRank(dates_dfs, team_schedules, 0, dict_keys, i)
         ranks.append(val)
-    elif datetime_list[0] < team_schedules["Date"][i] <= datetime_list[1]:
+    elif datetime_list[0] <= team_schedules["Date"][i] < datetime_list[1]:
+        val = findRank(dates_dfs, team_schedules, 0, dict_keys, i)
+        ranks.append(val)
+    elif datetime_list[1] <= team_schedules["Date"][i] < datetime_list[2]:
         val = findRank(dates_dfs, team_schedules, 1, dict_keys, i)
         ranks.append(val)
-    elif datetime_list[1] < team_schedules["Date"][i] <= datetime_list[2]:
+    elif datetime_list[2] <= team_schedules["Date"][i] < datetime_list[3]:
         val = findRank(dates_dfs, team_schedules, 2, dict_keys, i)
         ranks.append(val)
-    elif datetime_list[2] < team_schedules["Date"][i] <= datetime_list[3]:
+    elif datetime_list[3] <= team_schedules["Date"][i] < datetime_list[4]:
         val = findRank(dates_dfs, team_schedules, 3, dict_keys, i)
         ranks.append(val)
-    elif datetime_list[3] < team_schedules["Date"][i] <= datetime_list[4]:
+    elif datetime_list[4] <= team_schedules["Date"][i] < datetime_list[5]:
         val = findRank(dates_dfs, team_schedules, 4, dict_keys, i)
         ranks.append(val)
-    elif datetime_list[4] < team_schedules["Date"][i] <= datetime_list[5]:
+    elif datetime_list[5] <= team_schedules["Date"][i] < datetime_list[6]:
         val = findRank(dates_dfs, team_schedules, 5, dict_keys, i)
         ranks.append(val)
     else:
@@ -71,7 +74,7 @@ for i in range(len(team_schedules)):
         ranks.append(val)
 
 team_schedules["Opp Rank"] = ranks
-print(team_schedules)
+team_schedules.to_csv("ranked_team_schedules.csv")
 
 # zero_ranks = team_schedules[team_schedules["Opp Rank"] == 999]["Opponent"]
 # mult_ranks = team_schedules[team_schedules["Opp Rank"] == 9999]["Opponent"]
