@@ -34,6 +34,13 @@ team_schedules['Opponent'] = team_schedules['Opponent'].replace(
 team_schedules = team_schedules[team_schedules["Opponent"] != "CAR"].reset_index(drop=True)
 team_schedules = team_schedules[team_schedules["Opponent"] != "Guadeloupe"].reset_index(drop=True)
 
+# removing any parentheses from goals columns
+def only_goals(x):
+    return x[0]
+
+team_schedules["GF"] = team_schedules["GF"].apply(lambda x: only_goals(x))
+team_schedules["GA"] = team_schedules["GA"].apply(lambda x: only_goals(x))
+
 def findRank(df_dict, team_df, date_num, keys, index):
     rank_df = df_dict[keys[date_num]]
     matching_row = rank_df[rank_df["team_name"] == team_df["Opponent"][index]]
@@ -74,7 +81,8 @@ for i in range(len(team_schedules)):
         ranks.append(val)
 
 team_schedules["Opp Rank"] = ranks
-team_schedules.to_csv("ranked_team_schedules.csv")
+team_schedules = team_schedules.astype({"GF": "int", "GA": "int"})
+team_schedules.to_csv("ranked_team_schedules.csv", index=False)
 
 # zero_ranks = team_schedules[team_schedules["Opp Rank"] == 999]["Opponent"]
 # mult_ranks = team_schedules[team_schedules["Opp Rank"] == 9999]["Opponent"]
