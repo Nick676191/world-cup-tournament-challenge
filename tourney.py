@@ -36,12 +36,12 @@ class Team(object):
         rank_mover = 10
         while True:
             if (opponent_rank - rank_mover) > 0:
-                l_bound = opponent_rank - 20
+                l_bound = opponent_rank - rank_mover
             else:
                 l_bound = 1
             
             if (opponent_rank + rank_mover) < 212:
-                u_bound = opponent_rank + 20
+                u_bound = opponent_rank + rank_mover
             else:
                 u_bound = 211
             mask = (self.historical_games["Opp Rank"] >= l_bound) & (self.historical_games["Opp Rank"] <= u_bound)
@@ -205,7 +205,12 @@ class Bracket(object):
                                 grouped_teams[sort_group][tb1_index], grouped_teams[sort_group][ot_index] = grouped_teams[sort_group][ot_index], grouped_teams[sort_group][tb1_index]
                         else:
                             other_team = [team for team in tied_comb if team != tiebreaker2][0]
-                            tb2_index = grouped_teams[sort_group].index(tiebreaker2)
+                            # assuming this is periodically breaking because there is another tiebreaker that needs to be assessed like cautions/rank
+                            try:
+                                tb2_index = grouped_teams[sort_group].index(tiebreaker2)
+                            except ValueError:
+                                print("Create a third tiebreaker for this")
+                                tb2_index = None
                             ot_index = grouped_teams[sort_group].index(other_team)
                             if tb2_index > ot_index:
                                 grouped_teams[sort_group][tb2_index], grouped_teams[sort_group][ot_index] = grouped_teams[sort_group][ot_index], grouped_teams[sort_group][tb2_index]
@@ -244,14 +249,119 @@ class Bracket(object):
             14: ["1b", "3e/3f/3g/3i/3j"],
             15: ["1k", "3d/3e/3i/3j/3l"]
         }
+        third_pg_assigner = {}
         for game_num in top_16:
-            for rank in top_16[game_num]:
+            for rank_num in range(len(top_16[game_num])):
+                rank = top_16[game_num][rank_num]
                 if len(rank) == 2:
-                    print()
+                    rank_str_list = list(rank)
+                    rank_number = int(rank_str_list[0])
+                    rank_group = rank_str_list[1]
+                    rank_val = top_32[rank_group][rank_number-1]
+                    top_16[game_num][rank_num] = rank_val
                 else:
-                    print()
+                    ranks_str_list = rank.split("/")
+                    r_list = []
+                    for r in ranks_str_list.copy():
+                        rank_str_list = list(r)
+                        rank_number = int(rank_str_list[0])
+                        rank_group = rank_str_list[1]
+                        try:
+                            r = top_32[rank_group][rank_number-1]
+                            r_list.append(r)
+                        except IndexError:
+                            ranks_str_list.remove(r)
+                    third_pg_assigner[game_num] = r_list
+        
+        # determine the third place teams that can only be placed into one knockout stage game
+        third_place_teams = [team for game_num in third_pg_assigner for team in third_pg_assigner[game_num]]
+        third_place_set = set(third_place_teams)
+        third_place_team_list = [(team, len([i for i in third_place_teams if i == team])) for team in third_place_set]
+        
+        
+        # extremely clunky and needs to be fixed
+        game_filled = []
+        filling = True
+        while filling:
+            third_place_team_list.sort(key=lambda x: x[1])
+            team_tup = third_place_team_list[0]
+            # for team_tup in third_place_team_list:
+            if team_tup[1] == 1:
+                third_pg_index = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num] if team == team_tup[0]][0]
+                game_filled.append(third_pg_index[0])
+                for team in third_pg_assigner[third_pg_index[0]].copy():
+                    if team != team_tup[0]:
+                        try:
+                            third_pg_assigner[third_pg_index[0]].remove(team)
+                            tup_val = next((tup for tup in third_place_team_list if tup[0] == team), None)
+                            tup_index = third_place_team_list.index(tup_val)
+                            third_place_team_list[tup_index] = list(third_place_team_list[tup_index])
+                            third_place_team_list[tup_index][1] = third_place_team_list[tup_index][1] - 1
+                            third_place_team_list[tup_index] = tuple(third_place_team_list[tup_index])
+                        except ValueError:
+                            continue
+                top_16[third_pg_index[0]][1] = third_pg_assigner[third_pg_index[0]][0]
+                # del(third_pg_assigner[third_pg_index[0]][third_pg_index[1]])
+            else:
+                game_not_filled = True
+                while game_not_filled:
+                    rand_game_choice = np.random.choice(team_tup[1])
+                    third_pg_indexes = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num] if team == team_tup[0]]
+                    index_to_keep = third_pg_indexes[rand_game_choice]
+                    if index_to_keep[0] not in game_filled:
+                        game_filled.append(index_to_keep[0])
+                        game_not_filled = False
+                    else:
+                        continue
+                for index in third_pg_indexes:
+                    if index == index_to_keep:
+                        for team in third_pg_assigner[index[0]].copy():
+                            if team != team_tup[0]:
+                                try:
+                                    third_pg_assigner[index[0]].remove(team)
+                                    tup_val = next((tup for tup in third_place_team_list if tup[0] == team), None)
+                                    tup_index = third_place_team_list.index(tup_val)
+                                    third_place_team_list[tup_index] = list(third_place_team_list[tup_index])
+                                    third_place_team_list[tup_index][1] = third_place_team_list[tup_index][1] - 1
+                                    third_place_team_list[tup_index] = tuple(third_place_team_list[tup_index])
+                                except ValueError:
+                                    continue
+                    else:
+                        continue
+                        # del(third_pg_assigner[index[0]][index[1]])
+                top_16[index_to_keep[0]][1] = third_pg_assigner[index_to_keep[0]][0]
+            if len(third_place_team_list) > 1:
+                third_place_team_list = third_place_team_list[1:]
+            else:
+                filling = False
+        
+        return top_16
 
 
+    def knockout_stage(self, top_x):
+        top_x_by_2 = {}
+        i = 0
+        for game in range(0, len(top_x), 2):
+            first_game = game
+            second_game = game + 1
+            game_iter = [first_game, second_game]
+            top_x_by_2[i] = []
+            for num in game_iter:
+                while True:
+                    left_team, right_team = top_x[num][0], top_x[num][1]
+                    knockout_game = Match(left_team, right_team)
+                    left_goals, right_goals = knockout_game.calc_score()
+                    if left_goals > right_goals:
+                        top_x_by_2[i].append(left_team)
+                        break
+                    elif right_goals > left_goals:
+                        top_x_by_2[i].append(right_team)
+                        break
+                    else:
+                        continue
+            i+=1
+        
+        return top_x_by_2
                 
 
 
@@ -265,9 +375,30 @@ for group in top_32:
     for team in top_32[group]:
         print(team)
 
+top_16 = world_cup.round_32(top_32)
+print(sum([len(set(top_16[i])) for i in top_16]))
 
+top_8 = world_cup.knockout_stage(top_16)
+print()
+print(top_8)
+print(sum([len(set(top_8[i])) for i in top_8]))
 
+top_4 = world_cup.knockout_stage(top_8)
+print()
+print(top_4)
+print(sum([len(set(top_4[i])) for i in top_4]))
 
+top_2 = world_cup.knockout_stage(top_4)
+print()
+print(top_2)
+print(sum([len(set(top_2[i])) for i in top_2]))
+
+top_1 = world_cup.knockout_stage(top_2)
+print()
+print(top_1)
+print(sum([len(set(top_1[i])) for i in top_1]))
+print(top_1[0][0])
+print(top_1[0][1])
 
 
 
@@ -295,3 +426,14 @@ for group in top_32:
 # top_teams = [team for team in grouped_teams[sort_group] if team.points == max_points]
 
 # gf_combs[sort_group] = [(team.name, team.goals_for) for team in grouped_teams[sort_group]]
+
+# team_index = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num]][0]
+
+                # for game_num in third_pg_assigner:
+                #     for team in third_pg_assigner[game_num]:
+                #         if team == team_tup[0]:
+                #             continue
+                #         else:
+                #             third_place_list_index = [third_place_team_list.index(tup) for tup in third_place_team_list if tup[0] == team]
+                #             third_place_team_list.pop(third_place_list_index[0])
+                #             third_pg_assigner[game_num].remove(team)
