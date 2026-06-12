@@ -34,6 +34,8 @@ class Team(object):
         self.historical_games = historical_games
     
     def rank_mean_goals(self, opponent_rank):
+        GOALS_WEIGHT = 0.50
+        RANK_WEIGHT = 0.50
         rank_mover = 5
         while True:
             if (opponent_rank - rank_mover) > 0:
@@ -52,8 +54,10 @@ class Team(object):
                 break
             else:
                 rank_mover += 1
+        avg_goals = np.sum(similar_teams["GF"]) / len(similar_teams)
+        norm_rank_score = (211 - self.world_rank) / 211
 
-        return np.sum(similar_teams["GF"]) / len(similar_teams)
+        return (GOALS_WEIGHT * avg_goals) + (RANK_WEIGHT * norm_rank_score)
     
     def __str__(self):
         return f"{self.name} finished in group {self.group} with {self.points} points, {self.goals_for} goals for, and {self.goals_against} goals against."

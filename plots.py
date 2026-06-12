@@ -21,8 +21,8 @@ fig, ax = plt.subplots()
 ax.bar(countries[:10], percentages[:10])
 
 ax.set_title("Projected Winners of the World Cup")
-ax.set_xlabel("Proportion")
-ax.set_ylabel("Countries")
+ax.set_xlabel("Countries")
+ax.set_ylabel("Proportion")
 ax.tick_params(axis="x", rotation=45, labelsize=8)
 plt.show()
 
