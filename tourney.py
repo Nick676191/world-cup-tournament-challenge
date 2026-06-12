@@ -18,6 +18,7 @@ games_url = "https://play.fifa.com/json/bracket_predictor/rounds.json"
 games_data = scrapy(games_url).findData()
 
 historical_matches_data = pd.read_csv(r"/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/ranked_team_schedules.csv")
+historical_matches_data.drop_duplicates(ignore_index=True, inplace=True)
 
 rank_data = pd.read_csv(r"/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/latest_fifa_rankings.csv")
 
