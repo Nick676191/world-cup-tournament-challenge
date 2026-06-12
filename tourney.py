@@ -33,7 +33,7 @@ class Team(object):
         self.historical_games = historical_games
     
     def rank_mean_goals(self, opponent_rank):
-        rank_mover = 10
+        rank_mover = 5
         while True:
             if (opponent_rank - rank_mover) > 0:
                 l_bound = opponent_rank - rank_mover
@@ -47,7 +47,7 @@ class Team(object):
             mask = (self.historical_games["Opp Rank"] >= l_bound) & (self.historical_games["Opp Rank"] <= u_bound)
             similar_teams = self.historical_games[mask]
 
-            if len(similar_teams) > 0:
+            if len(similar_teams) > 0 and np.sum(similar_teams["GF"]) > 0:
                 break
             else:
                 rank_mover += 1
@@ -133,8 +133,6 @@ class Bracket(object):
                 else:
                     home_team.points += 1
                     away_team.points += 1
-                
-                print(match)
         
         return self.teams_list, self.games
     
@@ -189,11 +187,25 @@ class Bracket(object):
                             gf_tie_game = [game_list for game_list in gf_combs[sort_group] if game_list[0] == (tied_comb[0], tied_comb[1])][0]
                             max_index = [i for i in range(len(gf_tie_game[1])) if max(gf_tie_game[1]) == gf_tie_game[1][i]]
                             if len(max_index) == 1: tiebreaker2 = gf_tie_game[0][max_index[0]]
+                            else:
+                                team_one_rank = tied_comb[0].world_rank
+                                team_two_rank = tied_comb[1].world_rank
+                                if team_one_rank < team_two_rank:
+                                    tiebreaker3 = tied_comb[0]
+                                else:
+                                    tiebreaker3 = tied_comb[1]
                         elif ((tied_comb[1], tied_comb[0]) == game[0]):
                             tiebreaker1 = game[1]
                             gf_tie_game = [game_list for game_list in gf_combs[sort_group] if game_list[0] == (tied_comb[1], tied_comb[0])][0]
                             max_index = [i for i in range(len(gf_tie_game[1])) if max(gf_tie_game[1]) == gf_tie_game[1][i]]
                             if len(max_index) == 1: tiebreaker2 = gf_tie_game[0][max_index]
+                            else: 
+                                team_one_rank = tied_comb[0].world_rank
+                                team_two_rank = tied_comb[1].world_rank
+                                if team_one_rank < team_two_rank:
+                                    tiebreaker3 = tied_comb[0]
+                                else:
+                                    tiebreaker3 = tied_comb[1]
                         else:
                             continue
 
@@ -204,16 +216,22 @@ class Bracket(object):
                             if tb1_index > ot_index:
                                 grouped_teams[sort_group][tb1_index], grouped_teams[sort_group][ot_index] = grouped_teams[sort_group][ot_index], grouped_teams[sort_group][tb1_index]
                         else:
-                            other_team = [team for team in tied_comb if team != tiebreaker2][0]
+                            try:
+                                other_team = [team for team in tied_comb if team != tiebreaker2][0]
+                            except UnboundLocalError:
+                                other_team = [team for team in tied_comb if team != tiebreaker3][0]
+                                tiebreaker2 = None
                             # assuming this is periodically breaking because there is another tiebreaker that needs to be assessed like cautions/rank
                             try:
                                 tb2_index = grouped_teams[sort_group].index(tiebreaker2)
+                                ot_index = grouped_teams[sort_group].index(other_team)
+                                if tb2_index > ot_index:
+                                    grouped_teams[sort_group][tb2_index], grouped_teams[sort_group][ot_index] = grouped_teams[sort_group][ot_index], grouped_teams[sort_group][tb2_index]
                             except ValueError:
-                                print("Create a third tiebreaker for this")
-                                tb2_index = None
-                            ot_index = grouped_teams[sort_group].index(other_team)
-                            if tb2_index > ot_index:
-                                grouped_teams[sort_group][tb2_index], grouped_teams[sort_group][ot_index] = grouped_teams[sort_group][ot_index], grouped_teams[sort_group][tb2_index]
+                                tb3_index = grouped_teams[sort_group].index(tiebreaker3)
+                                ot_index = grouped_teams[sort_group].index(other_team)
+                                if tb3_index > ot_index:
+                                    grouped_teams[sort_group][tb3_index], grouped_teams[sort_group][ot_index] = grouped_teams[sort_group][ot_index], grouped_teams[sort_group][tb3_index]
 
             top_32[sort_group] = grouped_teams[sort_group][:3]
             bottom_12.append(top_32[sort_group][2])
@@ -277,6 +295,7 @@ class Bracket(object):
         third_place_teams = [team for game_num in third_pg_assigner for team in third_pg_assigner[game_num]]
         third_place_set = set(third_place_teams)
         third_place_team_list = [(team, len([i for i in third_place_teams if i == team])) for team in third_place_set]
+        third_place_list_copy = third_place_team_list.copy()
         
         
         # extremely clunky and needs to be fixed
@@ -302,6 +321,11 @@ class Bracket(object):
                             continue
                 top_16[third_pg_index[0]][1] = third_pg_assigner[third_pg_index[0]][0]
                 # del(third_pg_assigner[third_pg_index[0]][third_pg_index[1]])
+            # elif team_tup[1] == 0:
+            #     # reset the list and try again
+            #     third_place_team_list = third_place_list_copy
+            #     game_filled = []
+            #     continue
             else:
                 game_not_filled = True
                 while game_not_filled:
@@ -341,99 +365,80 @@ class Bracket(object):
     def knockout_stage(self, top_x):
         top_x_by_2 = {}
         i = 0
-        for game in range(0, len(top_x), 2):
-            first_game = game
-            second_game = game + 1
-            game_iter = [first_game, second_game]
-            top_x_by_2[i] = []
-            for num in game_iter:
-                while True:
-                    left_team, right_team = top_x[num][0], top_x[num][1]
-                    knockout_game = Match(left_team, right_team)
-                    left_goals, right_goals = knockout_game.calc_score()
-                    if left_goals > right_goals:
-                        top_x_by_2[i].append(left_team)
-                        break
-                    elif right_goals > left_goals:
-                        top_x_by_2[i].append(right_team)
-                        break
-                    else:
-                        continue
-            i+=1
-        
-        return top_x_by_2
+        if len(top_x) > 1:
+            for game in range(0, len(top_x), 2):
+                first_game = game
+                second_game = game + 1
+                game_iter = [first_game, second_game]
+                top_x_by_2[i] = []
+                for num in game_iter:
+                    while True:
+                        left_team, right_team = top_x[num][0], top_x[num][1]
+                        knockout_game = Match(left_team, right_team)
+                        left_goals, right_goals = knockout_game.calc_score()
+                        if left_goals > right_goals:
+                            top_x_by_2[i].append(left_team)
+                            break
+                        elif right_goals > left_goals:
+                            top_x_by_2[i].append(right_team)
+                            break
+                        else:
+                            continue
+                i+=1
+        else:
+            while True:
+                left_team, right_team = top_x[0][0], top_x[0][1]
+                final_game = Match(left_team, right_team)
+                left_goals, right_goals = final_game.calc_score()
+                if left_goals > right_goals:
+                    winning_team = left_team
+                    break
+                elif right_goals > left_goals:
+                    winning_team = right_team
+                    break
+                else:
+                    continue
+            return winning_team
                 
+        return top_x_by_2
 
 
-world_cup = Bracket(team_data, games_data, historical_matches_data, rank_data)
+if __name__ == "__main__":
+    world_cup = Bracket(team_data, games_data, historical_matches_data, rank_data)
 
-post_gs_teams, post_gs_games = world_cup.group_play()
+    post_gs_teams, post_gs_games = world_cup.group_play()
 
-gt, top_32 = world_cup.commissioner()
-for group in top_32:
-    print(f"\nGROUP {group.upper()} STANDINGS")
-    for team in top_32[group]:
-        print(team)
+    gt, top_32 = world_cup.commissioner()
+    for group in top_32:
+        print(f"\nGROUP {group.upper()} STANDINGS")
+        for team in top_32[group]:
+            print(team)
 
-top_16 = world_cup.round_32(top_32)
-print(sum([len(set(top_16[i])) for i in top_16]))
+    top_16 = world_cup.round_32(top_32)
+    print(sum([len(set(top_16[i])) for i in top_16]))
 
-top_8 = world_cup.knockout_stage(top_16)
-print()
-print(top_8)
-print(sum([len(set(top_8[i])) for i in top_8]))
+    top_8 = world_cup.knockout_stage(top_16)
+    print()
+    print(top_8)
+    print(sum([len(set(top_8[i])) for i in top_8]))
 
-top_4 = world_cup.knockout_stage(top_8)
-print()
-print(top_4)
-print(sum([len(set(top_4[i])) for i in top_4]))
+    top_4 = world_cup.knockout_stage(top_8)
+    print()
+    print(top_4)
+    print(sum([len(set(top_4[i])) for i in top_4]))
 
-top_2 = world_cup.knockout_stage(top_4)
-print()
-print(top_2)
-print(sum([len(set(top_2[i])) for i in top_2]))
+    top_2 = world_cup.knockout_stage(top_4)
+    print()
+    print(top_2)
+    print(sum([len(set(top_2[i])) for i in top_2]))
 
-top_1 = world_cup.knockout_stage(top_2)
-print()
-print(top_1)
-print(sum([len(set(top_1[i])) for i in top_1]))
-print(top_1[0][0])
-print(top_1[0][1])
+    top_1 = world_cup.knockout_stage(top_2)
+    print()
+    print(top_1)
+    print(sum([len(set(top_1[i])) for i in top_1]))
+    print(top_1[0][0])
+    print(top_1[0][1])
 
-
-
-
-""" Extra Code """
-# if len(top_teams) == 1:
-#     top_24[sort_group] = [(1, top_teams[0])]
-#     for team in top_teams:
-#         grouped_teams[sort_group].remove(team)
-# elif len(top_teams) == 2:
-#     top_24[sort_group] = top_teams
-#     for team in top_teams:
-#         grouped_teams[sort_group].remove(team)
-# elif len(top_teams) == 3:
-
-# top_2_group = grouped_teams[sort_group][:1]
-# if top_2_group[0].points != top_2_group[1].points
-#     top_24[sort_group] = top_2_group
-#     grouped_teams[sort_group].pop(top_2_group[0])
-#     grouped_teams[sort_group].pop(top_2_group[1])
-# else:
-
-# , team.goals_for - team.goals_against, team.goals_for
-# max_points = max([team.points for team in grouped_teams[sort_group]])
-# top_teams = [team for team in grouped_teams[sort_group] if team.points == max_points]
-
-# gf_combs[sort_group] = [(team.name, team.goals_for) for team in grouped_teams[sort_group]]
-
-# team_index = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num]][0]
-
-                # for game_num in third_pg_assigner:
-                #     for team in third_pg_assigner[game_num]:
-                #         if team == team_tup[0]:
-                #             continue
-                #         else:
-                #             third_place_list_index = [third_place_team_list.index(tup) for tup in third_place_team_list if tup[0] == team]
-                #             third_place_team_list.pop(third_place_list_index[0])
-                #             third_pg_assigner[game_num].remove(team)
+    winning_team = world_cup.knockout_stage(top_1)
+    print()
+    print(winning_team)
