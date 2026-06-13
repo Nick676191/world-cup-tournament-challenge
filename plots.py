@@ -2,6 +2,7 @@ import json
 import string
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 first_file_path = "/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/winner_data.json"
 second_file_path = "/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/group_positions.json"
@@ -18,7 +19,8 @@ countries = [cat[0] for cat in winner_results]
 percentages = [per[1] for per in winner_results]
 
 fig, ax = plt.subplots()
-ax.bar(countries[:10], percentages[:10])
+bars = ax.bar(countries[:10], percentages[:10])
+ax.bar_label(bars, padding=2, fmt="%.3f", fontsize=7)
 
 ax.set_title("Projected Winners of the World Cup")
 ax.set_xlabel("Countries")
@@ -53,9 +55,15 @@ for group, num in zip(group_letters, range(len(group_letters))):
     if "Korea Republic" in countries:
         korea_id = countries.index("Korea Republic")
         countries[korea_id] = "Korea"
-    axs[row, col].bar(countries, percentages)
+    bars = axs[row, col].bar(countries, percentages)
+    axs[row, col].bar_label(bars, padding=2, fmt="%.2f", fontsize=6)
     axs[row, col].tick_params(axis="x", rotation=45, labelsize=8)
     axs[row, col].set_title(f"Group {group}")
+
+# ensuring that y axis is from 0 to 1
+y_setter = axs[0, 0]
+y_setter.set_ylim(0, 1)
+y_setter.set_yticks(np.arange(0.25, 1, 0.25))
 
 fig.subplots_adjust(hspace=1)
 fig.suptitle("Projected Group Winners")
