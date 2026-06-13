@@ -57,7 +57,10 @@ class Team(object):
         avg_goals = np.sum(similar_teams["GF"]) / len(similar_teams)
         norm_rank_score = (211 - self.world_rank) / 211
 
-        return (GOALS_WEIGHT * avg_goals) + (RANK_WEIGHT * norm_rank_score)
+        if self.world_rank > opponent_rank:
+            return ((GOALS_WEIGHT * avg_goals) * (5 / rank_mover)) + (RANK_WEIGHT * norm_rank_score)
+        else:
+            return (GOALS_WEIGHT * avg_goals) + (RANK_WEIGHT * norm_rank_score)
     
     def __str__(self):
         return f"{self.name} finished in group {self.group} with {self.points} points, {self.goals_for} goals for, and {self.goals_against} goals against."
