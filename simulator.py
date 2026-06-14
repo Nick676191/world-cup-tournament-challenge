@@ -24,6 +24,7 @@ rank_data = pd.read_csv(r"/Users/nickbourgeois/Documents/python/world-cup-tourna
 
 
 bad_count = 0
+bad_index_count = 0
 good_count = 0
 winner_results = []
 top_24_results = []
@@ -51,10 +52,14 @@ for i in range(1000):
     
     except ValueError:
         bad_count += 1
+    
+    except IndexError:
+        bad_index_count += 1
 
 
 if __name__ == "__main__":
     print(f"{bad_count} simulations didn't work because of a ValueError")
+    print(f"{bad_index_count} simulations didn't work because of an IndexError")
     print(f"{good_count} simulations worked")
 
     # stats of the simulation

@@ -10,3 +10,6 @@ __pycache__/
 
 # json
 *.json
+
+# .vscode dir
+.vscode/

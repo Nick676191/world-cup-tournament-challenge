@@ -1,8 +1,10 @@
 import numpy as np
 import pandas as pd
+import pdb
 from itertools import combinations
 from collections import Counter
 from scraper import scrapy
+import copy
 
 # grabbing the world cup teams and games from the scraper object
 team_url = "https://play.fifa.com/json/bracket_predictor/squads.json"
@@ -303,24 +305,27 @@ class Bracket(object):
         third_place_teams = [team for game_num in third_pg_assigner for team in third_pg_assigner[game_num]]
         third_place_set = set(third_place_teams)
         third_place_team_list = [(team, len([i for i in third_place_teams if i == team])) for team in third_place_set]
+        # creating copies of the original objects in case the process needs to be restarted
         third_place_list_copy = third_place_team_list.copy()
-        
+        top_16_copy = copy.deepcopy(top_16) # needed a deep copy to recursively copy everything in the dict as there are multiple mutable items
+        third_pg_assigner_copy = copy.deepcopy(third_pg_assigner) # needed a deep copy to recursively copy everything in the dict as there are multiple mutable items
         
         # extremely clunky and needs to be fixed
         game_filled = []
         filling = True
         while filling:
+            not_reset = True
             third_place_team_list.sort(key=lambda x: x[1])
             team_tup = third_place_team_list[0]
-            # for team_tup in third_place_team_list:
             if team_tup[1] == 1:
-                third_pg_index = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num] if team == team_tup[0]][0]
+                third_pg_index = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num] if team.name == team_tup[0].name][0]
                 game_filled.append(third_pg_index[0])
                 for team in third_pg_assigner[third_pg_index[0]].copy():
-                    if team != team_tup[0]:
+                    if team.name != team_tup[0].name:
                         try:
-                            third_pg_assigner[third_pg_index[0]].remove(team)
-                            tup_val = next((tup for tup in third_place_team_list if tup[0] == team), None)
+                            new_team_mem = [i for i in third_pg_assigner[third_pg_index[0]] if i.name == team.name][0]
+                            third_pg_assigner[third_pg_index[0]].remove(new_team_mem)
+                            tup_val = next((tup for tup in third_place_team_list if tup[0].name == team.name), None)
                             tup_index = third_place_team_list.index(tup_val)
                             third_place_team_list[tup_index] = list(third_place_team_list[tup_index])
                             third_place_team_list[tup_index][1] = third_place_team_list[tup_index][1] - 1
@@ -328,39 +333,48 @@ class Bracket(object):
                         except ValueError:
                             continue
                 top_16[third_pg_index[0]][1] = third_pg_assigner[third_pg_index[0]][0]
-                # del(third_pg_assigner[third_pg_index[0]][third_pg_index[1]])
-            # elif team_tup[1] == 0:
-            #     # reset the list and try again
-            #     third_place_team_list = third_place_list_copy
-            #     game_filled = []
-            #     continue
             else:
                 game_not_filled = True
                 while game_not_filled:
-                    rand_game_choice = np.random.choice(team_tup[1])
-                    third_pg_indexes = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num] if team == team_tup[0]]
-                    index_to_keep = third_pg_indexes[rand_game_choice]
+                    try:
+                        rand_game_choice = np.random.choice(team_tup[1])
+                    except ValueError:
+                        # reset the outermost while loop
+                        third_pg_assigner = copy.deepcopy(third_pg_assigner_copy)
+                        third_place_team_list = third_place_list_copy.copy()
+                        top_16 = copy.deepcopy(top_16_copy)
+                        game_filled = []
+                        not_reset = False
+                        break
+                    third_pg_indexes = [(game_num, third_pg_assigner[game_num].index(team)) for game_num in third_pg_assigner for team in third_pg_assigner[game_num] if team.name == team_tup[0].name]
+                    try:
+                        index_to_keep = third_pg_indexes[rand_game_choice]
+                    except IndexError:
+                        pdb.set_trace()
                     if index_to_keep[0] not in game_filled:
                         game_filled.append(index_to_keep[0])
                         game_not_filled = False
                     else:
                         continue
-                for index in third_pg_indexes:
-                    if index == index_to_keep:
-                        for team in third_pg_assigner[index[0]].copy():
-                            if team != team_tup[0]:
-                                try:
-                                    third_pg_assigner[index[0]].remove(team)
-                                    tup_val = next((tup for tup in third_place_team_list if tup[0] == team), None)
-                                    tup_index = third_place_team_list.index(tup_val)
-                                    third_place_team_list[tup_index] = list(third_place_team_list[tup_index])
-                                    third_place_team_list[tup_index][1] = third_place_team_list[tup_index][1] - 1
-                                    third_place_team_list[tup_index] = tuple(third_place_team_list[tup_index])
-                                except ValueError:
-                                    continue
-                    else:
-                        continue
-                        # del(third_pg_assigner[index[0]][index[1]])
+                if not_reset:
+                    for index in third_pg_indexes:
+                        if index == index_to_keep:
+                            for team in third_pg_assigner[index[0]].copy():
+                                if team.name != team_tup[0].name:
+                                    try:
+                                        new_team_mem = [i for i in third_pg_assigner[index_to_keep[0]] if i.name == team.name][0]
+                                        third_pg_assigner[index[0]].remove(new_team_mem)
+                                        tup_val = next((tup for tup in third_place_team_list if tup[0].name == team.name), None)
+                                        tup_index = third_place_team_list.index(tup_val)
+                                        third_place_team_list[tup_index] = list(third_place_team_list[tup_index])
+                                        third_place_team_list[tup_index][1] = third_place_team_list[tup_index][1] - 1
+                                        third_place_team_list[tup_index] = tuple(third_place_team_list[tup_index])
+                                    except ValueError:
+                                        continue
+                        else:
+                            continue
+                else:
+                    continue
                 top_16[index_to_keep[0]][1] = third_pg_assigner[index_to_keep[0]][0]
             if len(third_place_team_list) > 1:
                 third_place_team_list = third_place_team_list[1:]
@@ -449,4 +463,4 @@ if __name__ == "__main__":
 
     winning_team = world_cup.knockout_stage(top_1)
     print()
-    print(winning_team)
+    print(f"{winning_team.name} won the World Cup!")
