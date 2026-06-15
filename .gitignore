@@ -13,3 +13,6 @@ __pycache__/
 
 # .vscode dir
 .vscode/
+
+# parquet
+*.parquet
