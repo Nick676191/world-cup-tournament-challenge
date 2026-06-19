@@ -62,7 +62,7 @@ rows = []
 for i in range(1000):
     try:
         world_cup = Bracket(team_data, games_data, historical_matches_data, rank_data)
-        post_gs_teams, post_gs_games = world_cup.group_play()
+        post_gs_teams, post_gs_games = world_cup.active_group_play()
         gt, top_32 = world_cup.commissioner()
         top_16 = world_cup.round_32(top_32)
         top_8 = world_cup.knockout_stage(top_16)
@@ -155,6 +155,6 @@ if __name__ == "__main__":
     sim_df["group_pos"] = sim_df["group_pos"].astype("int8")
     sim_df["furthest_stage"] = sim_df["furthest_stage"].astype("int8")
 
-    # requires pyarrow
-    par_file_path = "/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/sim_results.parquet"
-    sim_df.to_parquet(par_file_path, index=False)
+    # # requires pyarrow
+    # par_file_path = "/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/sim_results_post_stage_1.parquet"
+    # sim_df.to_parquet(par_file_path, index=False)

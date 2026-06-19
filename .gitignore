@@ -16,3 +16,11 @@ __pycache__/
 
 # parquet
 *.parquet
+
+# image files
+plots/
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gif

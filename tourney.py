@@ -98,8 +98,8 @@ class Bracket(object):
     def group_play(self):
         initial_team_ids = []
         self.teams_list = []
-        for stage in self.games[:3]:
-            for game in stage["tournaments"]:
+        for stage_num, stage in enumerate(self.games[:3]):
+            for game_num, game in enumerate(stage["tournaments"]):
                 home_team_id = game["homeSquadId"]
                 away_team_id = game["awaySquadId"]
                 
@@ -127,8 +127,8 @@ class Bracket(object):
 
                 match = Match(home_team, away_team)
                 homeGoals, awayGoals = match.calc_score()
-                game["homeScore"] = homeGoals
-                game["awayScore"] = awayGoals
+                self.games[stage_num]["tournaments"][game_num]["homeScore"] = homeGoals
+                self.games[stage_num]["tournaments"][game_num]["awayScore"] = awayGoals
                 home_team.goals_for += homeGoals
                 home_team.goals_against += awayGoals
                 away_team.goals_for += awayGoals
@@ -136,10 +136,65 @@ class Bracket(object):
 
                 if homeGoals > awayGoals:
                     home_team.points += 3
-                    game["winner"] = home_team.name
+                    self.games[stage_num]["tournaments"][game_num]["winner"] = home_team.name
                 elif homeGoals < awayGoals:
                     away_team.points += 3
-                    game["winner"] = away_team.name
+                    self.games[stage_num]["tournaments"][game_num]["winner"] = away_team.name
+                else:
+                    home_team.points += 1
+                    away_team.points += 1
+        
+        return self.teams_list, self.games
+    
+    def active_group_play(self):
+        initial_team_ids = []
+        self.teams_list = []
+        for stage_num, stage in enumerate(self.games[:3]):
+            for game_num, game in enumerate(stage["tournaments"]):
+                home_team_id = game["homeSquadId"]
+                away_team_id = game["awaySquadId"]
+
+                if home_team_id not in initial_team_ids:
+                    initial_team_ids.append(home_team_id)
+                    team_data = next((item for item in self.teams if item["id"] == home_team_id), None)
+                    past_matches = self.historical_matches[self.historical_matches["Team"] == team_data["name"]]
+                    rank_row = self.ranks[self.ranks["team_name"] == team_data["name"]]["rank"]
+                    rank = rank_row.values[0]
+                    home_team = Team(team_data['name'], team_data['group'], home_team_id, 0, 0, 0, rank, past_matches)
+                    self.teams_list.append(home_team)
+                else:
+                    home_team = next((obj for obj in self.teams_list if obj.id == home_team_id), None)
+                
+                if away_team_id not in initial_team_ids:
+                    initial_team_ids.append(away_team_id)
+                    team_data = next((item for item in self.teams if item["id"] == away_team_id), None)
+                    past_matches = self.historical_matches[self.historical_matches["Team"] == team_data["name"]]
+                    rank_row = self.ranks[self.ranks["team_name"] == team_data["name"]]["rank"]
+                    rank = rank_row.values[0]
+                    away_team = Team(team_data['name'], team_data['group'], away_team_id, 0, 0, 0, rank, past_matches)
+                    self.teams_list.append(away_team)
+                else:
+                    away_team = next((obj for obj in self.teams_list if obj.id == away_team_id), None)
+
+                match = Match(home_team, away_team)
+                if (self.games[stage_num]["tournaments"][game_num]["status"] != "complete"):
+                    homeGoals, awayGoals = match.calc_score()
+                    self.games[stage_num]["tournaments"][game_num]["homeScore"] = homeGoals
+                    self.games[stage_num]["tournaments"][game_num]["awayScore"] = awayGoals
+                else:
+                    homeGoals = self.games[stage_num]["tournaments"][game_num]["homeScore"]
+                    awayGoals = self.games[stage_num]["tournaments"][game_num]["awayScore"]
+                home_team.goals_for += homeGoals
+                home_team.goals_against += awayGoals
+                away_team.goals_for += awayGoals
+                away_team.goals_against += homeGoals
+
+                if homeGoals > awayGoals:
+                    home_team.points += 3
+                    self.games[stage_num]["tournaments"][game_num]["winner"] = home_team.name
+                elif homeGoals < awayGoals:
+                    away_team.points += 3
+                    self.games[stage_num]["tournaments"][game_num]["winner"] = away_team.name
                 else:
                     home_team.points += 1
                     away_team.points += 1
@@ -428,7 +483,7 @@ class Bracket(object):
 if __name__ == "__main__":
     world_cup = Bracket(team_data, games_data, historical_matches_data, rank_data)
 
-    post_gs_teams, post_gs_games = world_cup.group_play()
+    post_gs_teams, post_gs_games = world_cup.active_group_play()
 
     gt, top_32 = world_cup.commissioner()
     for group in top_32:
