@@ -155,6 +155,6 @@ if __name__ == "__main__":
     sim_df["group_pos"] = sim_df["group_pos"].astype("int8")
     sim_df["furthest_stage"] = sim_df["furthest_stage"].astype("int8")
 
-    # requires pyarrow
-    par_file_path = "/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/results_03_after-matchday-9.parquet"
-    sim_df.to_parquet(par_file_path, index=False)
+    # # requires pyarrow
+    # par_file_path = "/Users/nickbourgeois/Documents/python/world-cup-tournament-challenge/data/results_03_after-matchday-9.parquet"
+    # sim_df.to_parquet(par_file_path, index=False)

@@ -248,6 +248,21 @@ class Bracket(object):
                 for game in gd_combs[sort_group]:
                     for tied_comb in tied_combs:
                         if ((tied_comb[0], tied_comb[1]) == game[0]):
+                            # find the index of the game between the two tied teams. Need the first tiebreaker to be who won in the head to head match
+                            for stage_num in range(3):
+                                for g in self.games[stage_num]["tournaments"]:
+                                    if (tied_comb[0].id == g["homeSquadId"] and tied_comb[1].id == g["awaySquadId"]):
+                                        winner = g["winner"]
+                                    elif (tied_comb[1].id == g["homeSquadId"] and tied_comb[0].id == g["awaySquadId"]):
+                                        winner = g["winner"]
+                                    else:
+                                        continue
+                            if winner == tied_comb[0].name:
+                                tiebreaker0 = tied_comb[0]
+                            elif winner == tied_comb[1].name:
+                                tiebreaker0 = tied_comb[1]
+                            else:
+                                tiebreaker0 = None
                             tiebreaker1 = game[1]
                             gf_tie_game = [game_list for game_list in gf_combs[sort_group] if game_list[0] == (tied_comb[0], tied_comb[1])][0]
                             max_index = [i for i in range(len(gf_tie_game[1])) if max(gf_tie_game[1]) == gf_tie_game[1][i]]
@@ -260,6 +275,21 @@ class Bracket(object):
                                 else:
                                     tiebreaker3 = tied_comb[1]
                         elif ((tied_comb[1], tied_comb[0]) == game[0]):
+                            # find the index of the game between the two tied teams. Need the first tiebreaker to be who won in the head to head match
+                            for stage_num in range(3):
+                                for g in self.games[stage_num]["tournaments"]:
+                                    if (tied_comb[0].id == g["homeSquadId"] and tied_comb[1].id == g["awaySquadId"]):
+                                        winner = g["winner"]
+                                    elif (tied_comb[1].id == g["homeSquadId"] and tied_comb[0].id == g["awaySquadId"]):
+                                        winner = g["winner"]
+                                    else:
+                                        continue
+                            if winner == tied_comb[0].name:
+                                tiebreaker0 = tied_comb[0]
+                            elif winner == tied_comb[1].name:
+                                tiebreaker0 = tied_comb[1]
+                            else:
+                                tiebreaker0 = None
                             tiebreaker1 = game[1]
                             gf_tie_game = [game_list for game_list in gf_combs[sort_group] if game_list[0] == (tied_comb[1], tied_comb[0])][0]
                             max_index = [i for i in range(len(gf_tie_game[1])) if max(gf_tie_game[1]) == gf_tie_game[1][i]]
@@ -274,7 +304,13 @@ class Bracket(object):
                         else:
                             continue
 
-                        if tiebreaker1 != "tied":
+                        if tiebreaker0 is not None:
+                            other_team = [team for team in tied_comb if team != tiebreaker0][0]
+                            tb0_index = grouped_teams[sort_group].index(tiebreaker0)
+                            ot_index = grouped_teams[sort_group].index(other_team)
+                            if tb0_index > ot_index:
+                                grouped_teams[sort_group][tb0_index], grouped_teams[sort_group][ot_index] = grouped_teams[sort_group][ot_index], grouped_teams[sort_group][tb0_index]
+                        elif tiebreaker1 != "tied":
                             other_team = [team for team in tied_comb if team != tiebreaker1][0]
                             tb1_index = grouped_teams[sort_group].index(tiebreaker1)
                             ot_index = grouped_teams[sort_group].index(other_team)
